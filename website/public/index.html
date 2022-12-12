@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nunito">
+    <style>
+        div{
+            transition: height 0.5s;
+        }
+        body {
+            background-color: #000;
+            color: azure;
+        }
+        #header {
+            color: azure;
+            font-family: "Nunito";
+            font-size: 26px;
+        }
+        .eye-outer{
+            position: relative;
+            height: 270px;
+            width: 35px;
+            background-color: #161616;
+            border-radius: 8px;
+        }
+        .space{
+            position: relative;
+        }
+        #leye-inner{
+            position: absolute;
+            bottom: 0;
+            height: 0%;
+            width: 35px;
+            background-color: #46C04B;
+            border-radius: inherit;
+        }
+        #reye-inner{
+            position: absolute;
+            bottom: 0;
+            height: 0%;
+            width: 35px;
+            background-color: #D14343;
+            border-radius: inherit;
+        }
+        #mouth-inner{
+            position: absolute;
+            bottom: 0;
+            height: 0%;
+            width: 35px;
+            background-color: #cbd446;
+            border-radius: inherit;
+        }
+        .row{
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+        }
+        .column{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .status-text{
+            font-family: "Nunito";
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="column">
+    <video class="input_video" height="0px" width="0px"></video>
+    <audio loop id="alarm_critical">
+        <source src="./assets/alarm_critical_long.mp3" type="audio/mp3">
+    </audio>
+    <audio id="alarm_normal">
+        <source src="./assets/alarm_normal_j.mp3" type="audio/mp3">
+    </audio>
+
+    <div id="header" class="column">
+        <div id="header-b1" class="row">
+            <img src="./assets/driver.png" alt="driver" height="45px" width="45px">
+            Drowsiness
+        </div>
+        <div id="header-b2">Detection System</div>
+    </div>
+    <br>
+    <br>
+    <div id="main-page" class="row">
+        <div id="leye" class="column">
+            <div id="leye-text">00.00</div>
+            <div class="eye-outer">
+                <div id="leye-inner"></div>
+            </div>
+            <img src="./assets/eye.png" alt="eye" height="50px" width="50px">
+        </div>
+        <div class="space" style="width: 20px;"></div>
+        <div id="reye" class="column">
+            <div id="reye-text">00.00</div>
+            <div class="eye-outer">
+                <div id="reye-inner"></div>
+            </div>
+            <img src="./assets/eye.png" alt="eye" height="50px" width="50px">
+        </div>
+        <div class="space" style="width: 20px;"></div>
+        <div id="mouth" class="column">
+            <div id="mouth-text">00.00</div>
+            <div class="eye-outer">
+                <div id="mouth-inner"></div>
+            </div>
+            <img src="./assets/mouth.png" alt="eye" height="50px" width="50px">
+        </div>
+        <div class="space" style="width: 20px;"></div>
+        <div class="column">
+            <div class="row">
+                <img id="status-1-image" src="./assets/close.png" alt="-ve" height="22px" width="22px">
+                <div class="space" style="width: 10px;"></div>
+                <div class="status-text">Driver's Face Detected</div>
+            </div>
+            <br><br>
+            <div class="row">
+                <img id="status-2-image" src="./assets/check-mark.png" alt="-ve" height="22px" width="22px">
+                <div class="space" style="width: 10px;"></div>
+                <div class="status-text">Driver is not feeling drowsy</div>
+            </div>
+            <br><br>
+            <div class="row">
+                <img id="status-3-image" src="./assets/check-mark.png" alt="-ve" height="22px" width="22px">
+                <div class="space" style="width: 10px;"></div>
+                <div class="status-text">Driver is Awake</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <script type="module">
+        import fjs from "https://cdn.skypack.dev/@flatten-js/core";
+        import polygonClipping from "https://cdn.skypack.dev/polygon-clipping";
+
+        const rIrisIdx = [469, 470, 471, 472];
+        const lIrisIdx = [474, 475, 476, 477];
+        const rEyeIdx = [
+            33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246,
+        ];
+        const lEyeIdx = [
+            263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388,
+            466, 263,
+        ];
+        const lipsIdx = [
+            78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318, 402, 317, 14,
+            87, 178, 88, 95,
+        ];
+
+        var blinks = 0;
+        var isBlinking = false;
+        const blinkThreshold = 40; // %
+        var blinkStartTime;
+        var lastEyeClosedTime = 0;
+
+        var yawns = 0;
+        var isYawning = false;
+        var yawnStartTime = null;
+        const yawnThreshold = 1;
+        const yawnDuration = 1; // seconds
+        const yawnTimes = [];
+        var alarmPlayed = false
+
+        function getNormal(points) {
+            var b = points[0];
+            var r = points[1];
+            var s = points[2];
+
+            var qr = [r[0] - b[0], r[1] - b[1], r[2] - b[2]];
+            var qs = [s[0] - b[0], s[1] - b[1], s[2] - b[2]];
+
+            var normal = [
+                qr[1] * qs[2] - qr[2] * qs[1],
+                qr[2] * qs[0] - qr[0] * qs[2],
+                qr[0] * qs[1] - qr[1] * qs[0],
+            ];
+
+            var mag = Math.sqrt(
+                normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]
+            );
+            return [normal[0] / mag, normal[1] / mag, normal[2] / mag];
+        }
+
+        function projection(point, normal) {
+            var u = point;
+            var x =
+                normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
+            var dot = u[0] * normal[0] + u[1] * normal[1] + u[2] * normal[2];
+            var alpha = -dot / x;
+            normal = [normal[0] * alpha, normal[1] * alpha, normal[2] * alpha];
+            return [u[0] + normal[0], u[1] + normal[1], u[2] + normal[2]];
+        }
+
+        function convert3Dto2D(point, normal) {
+            var modNxy = Math.sqrt(normal[0] ** 2 + normal[1] ** 2);
+            var rz = [
+                [normal[0] / modNxy, normal[1] / modNxy, 0],
+                [-normal[1] / modNxy, normal[0] / modNxy, 0],
+                [0, 0, 1],
+            ];
+            var normal1 = [
+                rz[0][0] * normal[0] + rz[0][1] * normal[1] + rz[0][2] * normal[2],
+                rz[1][0] * normal[0] + rz[1][1] * normal[1] + rz[1][2] * normal[2],
+                rz[2][0] * normal[0] + rz[2][1] * normal[1] + rz[2][2] * normal[2],
+            ];
+            var ry = [
+                [normal1[2], 0, -normal1[0]],
+                [0, 1, 0],
+                [normal1[0], 0, normal1[2]],
+            ];
+            var rx = [
+                [0, 1],
+                [-1, 0],
+            ];
+            var ans = [
+                rz[0][0] * point[0] + rz[0][1] * point[1] + rz[0][2] * point[2],
+                rz[1][0] * point[0] + rz[1][1] * point[1] + rz[1][2] * point[2],
+                rz[2][0] * point[0] + rz[2][1] * point[1] + rz[2][2] * point[2],
+            ];
+            ans = [
+                ry[0][0] * ans[0] + ry[0][1] * ans[1] + ry[0][2] * ans[2],
+                ry[1][0] * ans[0] + ry[1][1] * ans[1] + ry[1][2] * ans[2],
+                ry[2][0] * ans[0] + ry[2][1] * ans[1] + ry[2][2] * ans[2],
+            ];
+            ans = [
+                rx[0][0] * ans[0] + rx[0][1] * ans[1],
+                rx[1][0] * ans[0] + rx[1][1] * ans[1],
+            ];
+            return ans;
+        }
+
+        function getVisibility(iris, eye) {
+            try {
+                iris.reverse();
+                eye.reverse();
+                iris.push(iris[0]);
+                eye.push(eye[0]);
+                var irisPolygon = new fjs.Polygon(iris);
+                var intersectionPoints = polygonClipping.intersection([iris], [eye]);
+
+                var intersection = new fjs.Polygon(intersectionPoints);
+                var a1 = Math.abs(intersection.area());
+                var a2 = Math.abs(irisPolygon.area());
+
+                return (a1 / a2) * 100;
+            } catch (e) {
+                console.log(e);
+                return 0;
+            }
+        }
+
+        function calculateRatio(leftP, rightP, topP, bottomP) {
+            var horizontal = Math.sqrt(
+                (rightP[0] - leftP[0]) ** 2 +
+                (rightP[1] - leftP[1]) ** 2 +
+                (rightP[2] - leftP[2]) ** 2
+            );
+            var vertical = Math.sqrt(
+                (topP[0] - bottomP[0]) ** 2 +
+                (topP[1] - bottomP[1]) ** 2 +
+                (topP[2] - bottomP[2]) ** 2
+            );
+            return vertical / horizontal;
+        }
+
+        function doCalculations(points) {
+            var holder = points;
+            var newPoints = [];
+            for (var i = 0; i < points.length; i++) {
+                newPoints.push([-points[i].z, points[i].x, -points[i].y]);
+            }
+            points = newPoints;
+            var lIrisCord = [];
+            var rIrisCord = [];
+            var lEyeCord = [];
+            var rEyeCord = [];
+            var lipsCord = [];
+            for (var i = 0; i < lIrisIdx.length; i++) {
+                lIrisCord.push(points[lIrisIdx[i]]);
+            }
+            for (var i = 0; i < rIrisIdx.length; i++) {
+                rIrisCord.push(points[rIrisIdx[i]]);
+            }
+            for (var i = 0; i < lEyeIdx.length; i++) {
+                lEyeCord.push(points[lEyeIdx[i]]);
+            }
+            for (var i = 0; i < rEyeIdx.length; i++) {
+                rEyeCord.push(points[rEyeIdx[i]]);
+            }
+            for (var i = 0; i < lipsIdx.length; i++) {
+                lipsCord.push(points[lipsIdx[i]]);
+            }
+
+            var lIrisNormal = getNormal(lIrisCord);
+            var rIrisNormal = getNormal(rIrisCord);
+
+            var lIrisProjection = [];
+            var rIrisProjection = [];
+            var lEyeProjection = [];
+            var rEyeProjection = [];
+            for (var i = 0; i < lIrisCord.length; i++) {
+                lIrisProjection.push(projection(lIrisCord[i], lIrisNormal));
+            }
+            for (var i = 0; i < rIrisCord.length; i++) {
+                rIrisProjection.push(projection(rIrisCord[i], rIrisNormal));
+            }
+            for (var i = 0; i < lEyeCord.length; i++) {
+                lEyeProjection.push(projection(lEyeCord[i], lIrisNormal));
+            }
+            for (var i = 0; i < rEyeCord.length; i++) {
+                rEyeProjection.push(projection(rEyeCord[i], rIrisNormal));
+            }
+
+            var lIrisPro2D = [];
+            var rIrisPro2D = [];
+            var lEyePro2D = [];
+            var rEyePro2D = [];
+            for (var i = 0; i < lIrisProjection.length; i++) {
+                lIrisPro2D.push(convert3Dto2D(lIrisProjection[i], lIrisNormal));
+            }
+            for (var i = 0; i < rIrisProjection.length; i++) {
+                rIrisPro2D.push(convert3Dto2D(rIrisProjection[i], rIrisNormal));
+            }
+            for (var i = 0; i < lEyeProjection.length; i++) {
+                lEyePro2D.push(convert3Dto2D(lEyeProjection[i], lIrisNormal));
+            }
+            for (var i = 0; i < rEyeProjection.length; i++) {
+                rEyePro2D.push(convert3Dto2D(rEyeProjection[i], rIrisNormal));
+            }
+
+            points = holder;
+            var leftP = [-points[78].z, points[78].x, -points[78].y];
+            var rightP = [-points[308].z, points[308].x, -points[308].y];
+            var topP = [-points[13].z, points[13].x, -points[13].y];
+            var bottomP = [-points[14].z, points[14].x, -points[14].y];
+
+            var lVisibility = getVisibility(lIrisPro2D, lEyePro2D);
+            var rVisibility = getVisibility(rIrisPro2D, rEyePro2D);
+
+            var ratio = calculateRatio(leftP, rightP, topP, bottomP);
+
+            if (
+                lVisibility < blinkThreshold &&
+                rVisibility < blinkThreshold &&
+                !isBlinking
+            ) {
+                blinkStartTime = Date.now();
+                isBlinking = true;
+            } else if (
+                lVisibility >= blinkThreshold &&
+                rVisibility >= blinkThreshold &&
+                isBlinking
+            ) {
+                var blinkEndTime = Date.now();
+                lastEyeClosedTime = (blinkEndTime - blinkStartTime) / 1000;
+                isBlinking = false;
+                blinks += 1;
+                if (!alarmCritical.paused) {
+                    alarmCritical.pause();
+                    s3img.src = "./assets/check-mark.png"
+                }
+            } else if (
+                lVisibility < blinkThreshold &&
+                rVisibility < blinkThreshold &&
+                isBlinking
+            ) {
+                var blinkEndTime = Date.now();
+                lastEyeClosedTime = (blinkEndTime - blinkStartTime) / 1000;
+                if (lastEyeClosedTime > 2 && alarmCritical.paused) {
+                    alarmCritical.volume = 1;
+                    alarmCritical.play();
+                    s3img.src = "./assets/close.png"
+                }
+            }
+
+
+            if (ratio > yawnThreshold && !isYawning) {
+                yawnStartTime = Date.now();
+                isYawning = true;
+            } else if (ratio <= yawnThreshold && isYawning) {
+                var yawnEndTime = Date.now();
+                isYawning = false;
+                if (yawnEndTime - yawnStartTime >= yawnDuration * 1000) {
+                    yawns += 1;
+                    yawnTimes.push(Date.now());
+                }
+            }
+            var curTime = Date.now();
+            var i = 0;
+            while (i < yawnTimes.length) {
+                if (curTime - yawnTimes[i] > 2.5 * 60 * 1000) {
+                    yawnTimes.pop(i);
+                } else {
+                    break;
+                }
+            }
+
+            if(yawnTimes.length>=5){
+                if(!alarmPlayed){
+                    alarmPlayed = true;
+                    alarmNormal.volume = 1;
+                    alarmNormal.play();
+                }
+                s2img.src = "./assets/close.png"
+            }
+            else{
+                alarmPlayed = false;
+                s2img.src = "./assets/check-mark.png"
+            }
+
+            return [
+                lVisibility,
+                rVisibility,
+                ratio,
+                blinks,
+                yawns,
+                yawnTimes.length,
+                lastEyeClosedTime,
+            ];
+        }
+
+
+        const videoElement = document.getElementsByClassName('input_video')[0];
+        const alarmCritical = document.getElementById("alarm_critical");
+        const alarmNormal = document.getElementById("alarm_normal");
+        const lText = document.getElementById("leye-text");
+        const rText = document.getElementById("reye-text");
+        const lBar = document.getElementById("leye-inner");
+        const rBar = document.getElementById("reye-inner");
+        const mText = document.getElementById("mouth-text");
+        const mBar = document.getElementById("mouth-inner");
+        const s1img = document.getElementById("status-1-image");
+        const s2img = document.getElementById("status-2-image");
+        const s3img = document.getElementById("status-3-image");
+
+        function onResults(results) {
+
+            if (results.multiFaceLandmarks) {
+                s1img.src = "./assets/check-mark.png";
+                for (const landmarks of results.multiFaceLandmarks) {
+                    const res = doCalculations(landmarks);
+                    const lEyeVisibility = res[0];
+                    const rEyeVisibility = res[1];
+                    const ratio = res[2];
+                    const blinks = res[3];
+                    const yawns = res[4];
+                    const yawnRate = res[5];
+                    const lastEyeClosedTime = res[6];
+
+                    lText.innerText = lEyeVisibility.toFixed(2);
+                    rText.innerText = rEyeVisibility.toFixed(2);
+                    lBar.style.height = `${lEyeVisibility}%`;
+                    rBar.style.height = `${rEyeVisibility}%`;
+                    mText.innerText = ratio.toFixed(2);
+                    mBar.style.height = `${ratio/3*100}%`;
+                }
+            }
+            else{
+                s1img.src = "./assets/close.png";
+            }
+        }
+
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+            }
+        });
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        faceMesh.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await faceMesh.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+        camera.start();
+    </script>
+</body>
+
+</html>
