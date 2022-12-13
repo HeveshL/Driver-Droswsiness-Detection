@@ -44,4 +44,4 @@ Distributed under the Apache License. See `LICENSE` for more information.
 
 - Pranav Bhagat : <a href= "https://www.github.com/prnv30">@prnv30</a> - pranavbs30@gmail.com
 
-- Saquib Sheikh : <a href= ""></a> - 
+- Saquib Sheikh : <a href= "https://github.com/saquib-alpha">@saquib-alpha</a> - saquibsheikh2000@gmail.com
