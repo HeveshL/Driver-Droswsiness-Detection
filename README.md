@@ -42,6 +42,6 @@ Distributed under the Apache License. See `LICENSE` for more information.
 
 - Om Jodhpurkar : <a href= ""></a> - 
 
-- Pranav Bhagat : <a href= ""></a> - 
+- Pranav Bhagat : <a href= "https://www.github.com/prnv30"></a> - pranavbs30@gmail.com
 
 - Saquib Sheikh : <a href= ""></a> - 
