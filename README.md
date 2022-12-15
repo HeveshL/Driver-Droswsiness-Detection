@@ -40,7 +40,7 @@ Distributed under the Apache License. See `LICENSE` for more information.
 
 - Hevesh Lakhwani : <a href= "https://www.github.com/HeveshL">@HeveshL</a> - hevesh000@gmail.com
 
-- Om Jodhpurkar : <a href= ""></a> - 
+- Om Jodhpurkar : <a href= "https://github.com/infinity811">@infinity811</a> - ojodhpurkar@gmail.com
 
 - Pranav Bhagat : <a href= "https://www.github.com/prnv30">@prnv30</a> - pranavbs30@gmail.com
 
